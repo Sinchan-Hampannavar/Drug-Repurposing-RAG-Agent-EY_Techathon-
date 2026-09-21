@@ -2,3 +2,4 @@ venv/
 papers.json
 faiss_index.bin
 papers_store.json
+__pycache__/
