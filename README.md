@@ -1,91 +1,87 @@
-# PubMed Literature Agent (RAG)
+Multi-Agent System for Drug Repurposing
 
-A retrieval-augmented generation (RAG) system that searches real PubMed research abstracts and answers questions about them, citing the exact papers it used. Built to explore drug-repurposing literature, using semantic search over a vector database and an LLM for grounded synthesis.
+A multi-agent retrieval-augmented generation (RAG) system that answers drug-repurposing questions by searching real PubMed research abstracts and real ClinicalTrials.gov trial records, routing each question to the right data source automatically, and citing exactly which sources it used.
 
-This is a solo rebuild of one agent from a larger multi-agent concept originally pitched at EY Techathon 6.0 (Agentic AI for pharmaceutical drug repurposing). The original hackathon demo UI was built by a teammate using Lovable; this repo is an independent, from-scratch implementation of the Literature Agent with a real retrieval + generation pipeline behind it — no mocked data.
+This is a solo rebuild of a concept originally pitched at EY Techathon 6.0 (Agentic AI for pharmaceutical drug repurposing). The original hackathon demo UI was built by a teammate using Lovable; this repo is an independent, from-scratch implementation with real retrieval and generation pipelines behind it — no mocked data.
 
-## Features
+Features
 
-**Data Pipeline**
+Data Pipeline
 
-* Fetch Abstracts: Pulls real research papers from the PubMed API for any search query.
-* Structured Storage: Saves papers as PMID, title, and abstract records in JSON.
+Fetch PubMed Abstracts: Pulls real research papers from the PubMed API for any search query.
+Fetch Clinical Trials: Pulls real trial records from the ClinicalTrials.gov API, including status, conditions, and summary.
+Structured Storage: Saves both sources as clean JSON records for indexing.
 
-**Retrieval (Vector Search)**
+Retrieval (Vector Search)
 
-* Embedding: Converts each abstract into a vector using a local sentence-transformer model.
-* Vector Index: Stores embeddings in a FAISS index for fast semantic similarity search.
-* Semantic Retrieval: Finds the most relevant abstracts for a given question, not just keyword matches.
+Embedding: Converts abstracts and trial summaries into vectors using a local sentence-transformer model.
+Two Independent Vector Indexes: Separate FAISS indexes for literature and clinical trials, so each agent can be run standalone.
+Semantic Retrieval: Finds the most relevant documents for a question, not just keyword matches.
 
-**Generation (LLM Synthesis)**
+Multi-Agent Routing
 
-* Grounded Answers: Passes retrieved abstracts to Gemini, which answers using only that context.
-* Source Citation: Every answer cites which paper(s) it drew from, by PMID.
-* Uncertainty Handling: If the retrieved abstracts don't support an answer, the agent says so instead of guessing.
+Literature Agent: Answers mechanism and evidence questions using PubMed abstracts.
+Clinical Trials Agent: Answers trial status and design questions using ClinicalTrials.gov data.
+Master Agent Router: Classifies each incoming question with Gemini and calls only the relevant agent(s) — literature, clinical trials, or both — before doing any retrieval.
+Combined Synthesis: When both agents are needed, retrieves from both sources and generates one coherent answer that can flag conflicts between published evidence and trial outcomes.
 
-**Interface**
+Generation (LLM Synthesis)
 
-* Terminal Mode: Ask questions directly from the command line for quick testing.
-* Web UI: A Streamlit app with a search box and expandable source panels for each answer.
+Grounded Answers: Every answer is generated only from retrieved context, not from the model's general knowledge.
+Source Citation: Answers cite papers as [Paper N] (with PMID) and trials as [Trial N] (with NCT ID).
+Uncertainty Handling: If retrieved context doesn't support an answer, the agent says so instead of guessing.
+Automatic Retry: Gemini API calls retry automatically on transient server errors instead of crashing.
 
-## Tech Stack
+Interface
 
-* Language: Python
-* Embeddings: `sentence-transformers` (all-MiniLM-L6-v2, runs locally)
-* Vector Database: `faiss-cpu`
-* LLM: Google Gemini API (`google-genai`)
-* Data Source: PubMed API via `biopython`
-* Frontend: `streamlit`
+Terminal Mode: Run any agent directly from the command line for quick testing.
+Web UI: A Streamlit app with a search box and expandable source panels.
+Tech Stack
+Language: Python
+Embeddings: sentence-transformers (all-MiniLM-L6-v2, runs locally)
+Vector Database: faiss-cpu
+LLM & Routing: Google Gemini API (google-genai)
+Data Sources: PubMed API (biopython), ClinicalTrials.gov API (requests)
+Frontend: streamlit
+File-Based Storage
 
-## File-Based Storage
+Generated data is stored locally and excluded from version control (see .gitignore):
 
-Generated data is stored locally and excluded from version control (see `.gitignore`):
-
-* `papers.json` – raw fetched abstracts from PubMed.
-* `faiss_index.bin` – the vector index built from those abstracts.
-* `papers_store.json` – paper records aligned to the vector index, for mapping search results back to text.
-
-## Setup
-
-```bash
+papers.json / clinicaltrials.json – raw fetched records from each source.
+faiss_index.bin / ct_faiss_index.bin – vector indexes for literature and trials respectively.
+papers_store.json / ct_store.json – records aligned to each vector index, for mapping search results back to text.
+Setup
+bash
 python -m venv venv
 venv\Scripts\activate          # Windows
 source venv/bin/activate       # Mac/Linux
 
 pip install -r requirements.txt
-```
 
-Get a free Gemini API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (no credit card required), then set it:
+Get a free Gemini API key at aistudio.google.com/apikey (no credit card required), then set it:
 
-```bash
+bash
 $env:GEMINI_API_KEY="your-key-here"     # Windows PowerShell
 export GEMINI_API_KEY="your-key-here"   # Mac/Linux
-```
-
-## Usage
-
-```bash
-# 1. Download real papers on a topic
+Usage
+bash
+# 1. Download real data
 python fetch_pubmed.py "metformin cancer repurposing" --max 100 --email you@example.com
+python fetch_clinicaltrials.py "metformin cancer" --max 100
 
-# 2. Build the vector index
+# 2. Build both vector indexes
 python build_index.py
+python build_clinicaltrials_index.py
 
-# 3. Test in the terminal
+# 3. Test each agent individually
 python rag_agent.py
+python clinical_trials_agent.py
 
-# 4. Run the web app
+# 4. Run the full multi-agent router
+python master_agent.py
+
+# 5. Run the web app
 streamlit run app.py
-```
 
-## Honest Limitations
-
-* Retrieval uses exact nearest-neighbor search (`IndexFlatL2`), which works well at this scale (hundreds of papers) but would need a different FAISS index type (e.g. `IndexIVFFlat`) to scale to millions of documents.
-* This is a single retrieve-then-generate loop, not a multi-step agent that can decide to search again or call other tools — a natural next extension.
-* The Clinical Trial, Patent, and Market Intelligence agents from the original hackathon concept are not implemented here; this repo covers the Literature Agent only.
-
-## Next Steps
-
-* Add a second agent (e.g. ClinicalTrials.gov API) with a simple router that decides which agent to call per question.
-* Swap `IndexFlatL2` for `IndexIVFFlat` and benchmark retrieval speed at larger scale.
-* Deploy on Streamlit Community Cloud for a live demo link.
+# 6. Benchmark retrieval speed at scale
+python benchmark_index.py

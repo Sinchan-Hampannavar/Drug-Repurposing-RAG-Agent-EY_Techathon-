@@ -22,6 +22,7 @@ set it as an environment variable:
 """
 
 import json
+import os
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -39,7 +40,13 @@ class LiteratureAgent:
         with open("papers_store.json") as f:
             self.papers = json.load(f)
         self.embedder = SentenceTransformer(EMBEDDING_MODEL)
-        self.client = genai.Client()  # reads GEMINI_API_KEY from env
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise SystemExit(
+                "GEMINI_API_KEY is not set in this terminal session. "
+                "Run: $env:GEMINI_API_KEY=\"your-key\" (PowerShell) before this script."
+            )
+        self.client = genai.Client(api_key=api_key)  # explicit — avoids SDK version auto-detection quirks
 
     def retrieve(self, question: str, k: int = TOP_K) -> list[dict]:
         """Find the k most relevant abstracts for a question."""
