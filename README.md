@@ -145,7 +145,7 @@ Generated data is stored locally and excluded from version control.
 - `ct_store.json`
 
 ---
-# 🔗 Live App:** https://multiagent-system-for-drug-repurposing-ey-techathon.streamlit.app/
+# 🔗 Live App: https://multiagent-system-for-drug-repurposing-ey-techathon.streamlit.app/
 
 ---
 
