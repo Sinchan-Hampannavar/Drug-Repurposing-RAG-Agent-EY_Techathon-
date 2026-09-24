@@ -29,7 +29,7 @@ from sentence_transformers import SentenceTransformer
 from google import genai
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = "gemini-3.5-flash"
 TOP_K = 5  # how many abstracts to retrieve per question
 
 
